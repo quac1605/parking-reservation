@@ -4,11 +4,51 @@ import { useLocation, useNavigate } from 'react-router-dom';
 export default function Payment() {
     const location = useLocation();
     const navigate = useNavigate();
-    const { slot, location: locName, startTime, endTime } = location.state || {};
+    const { slot, location: locName, startTime, endTime, totalPrice } = location.state || {};
     const [complete, setComplete] = useState(false);
+    const [loading, setLoading] = useState(false);
 
-    const handlePayment = () => {
-        setComplete(true);
+    const handlePayment = async () => {
+        setLoading(true);
+        try {
+            // Construct real timestamps
+            const today = new Date();
+            const dateStr = today.toISOString().split('T')[0]; // YYYY-MM-DD
+
+            // Start Time
+            const startDateTime = new Date(`${dateStr}T${startTime}:00`);
+
+            // End Time
+            let endDateTime = new Date(`${dateStr}T${endTime}:00`);
+            // If end time is earlier than start time (e.g. 06:00 < 18:00), it's next day
+            if (endDateTime < startDateTime) {
+                endDateTime.setDate(endDateTime.getDate() + 1);
+            }
+
+            const res = await fetch('/api/reservations', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    slot_id: slot.id,
+                    location: locName,
+                    start_time: startDateTime.toISOString(),
+                    end_time: endDateTime.toISOString(),
+                    total_price: totalPrice
+                })
+            });
+
+            if (res.ok) {
+                setComplete(true);
+            } else {
+                const errData = await res.json();
+                alert('Reservation failed: ' + (errData.message || 'Unknown error'));
+            }
+        } catch (err) {
+            console.error(err);
+            alert('Something went wrong processing your request.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     if (complete) {
@@ -16,7 +56,7 @@ export default function Payment() {
             <div className="min-h-screen bg-white flex items-center justify-center p-4">
                 <div className="text-center">
                     <h2 className="text-3xl font-bold text-primary mb-4">Payment Successful!</h2>
-                    <p className="text-gray-600 mb-8">Your QR Code has been generated.</p>
+                    <p className="text-gray-600 mb-8">Reservation confirmed and saved.</p>
                     <button
                         onClick={() => navigate('/dashboard')}
                         className="bg-primary text-white px-8 py-3 rounded-md font-medium"
@@ -55,27 +95,30 @@ export default function Payment() {
 
                     <div className="space-y-3 mb-4">
                         <div className="flex justify-between">
-                            <span className="font-medium text-gray-700">Base Rate (3 h)</span>
-                            <span className="text-gray-900">€ 4.50</span>
-                        </div>
-                        <div className="flex justify-between">
-                            <span className="font-medium text-gray-700">Dynamic Adjustment</span>
-                            <span className="text-gray-900">€ 0.50</span>
+                            <span className="font-medium text-gray-700">Booking Time</span>
+                            <span className="text-gray-900">{startTime} - {endTime}</span>
                         </div>
                     </div>
 
                     <div className="flex justify-between border-t pt-4 font-bold text-lg">
                         <span>Total Amount:</span>
-                        <span>€ 5.00</span>
+                        <span>€ {totalPrice}</span>
                     </div>
                 </div>
 
                 <button
                     onClick={handlePayment}
-                    className="w-full bg-[#003087] text-white font-bold italic py-4 rounded-md hover:bg-[#001c64] transition-colors flex items-center justify-center gap-2"
+                    disabled={loading}
+                    className="w-full bg-[#003087] text-white font-bold italic py-4 rounded-md hover:bg-[#001c64] transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                    <span>Pay with</span>
-                    <span className="font-bold text-lg">PayPal</span>
+                    {loading ? (
+                        <span>Processing...</span>
+                    ) : (
+                        <>
+                            <span>Pay with</span>
+                            <span className="font-bold text-lg">PayPal</span>
+                        </>
+                    )}
                 </button>
 
                 <p className="mt-8 text-sm text-gray-500 text-center mb-4">

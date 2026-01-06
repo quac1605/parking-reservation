@@ -7,6 +7,8 @@ import Confirmation from './pages/Confirmation';
 import Payment from './pages/Payment';
 import './index.css';
 
+import ProtectedRoute from './components/ProtectedRoute';
+
 function App() {
   return (
     <Router>
@@ -14,9 +16,23 @@ function App() {
         <Route path="/" element={<Navigate to="/login" replace />} />
         <Route path="/login" element={<SignIn />} />
         <Route path="/signup" element={<SignUp />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/confirmation" element={<Confirmation />} />
-        <Route path="/payment" element={<Payment />} />
+
+        {/* Protected Routes */}
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/confirmation" element={
+          <ProtectedRoute>
+            <Confirmation />
+          </ProtectedRoute>
+        } />
+        <Route path="/payment" element={
+          <ProtectedRoute>
+            <Payment />
+          </ProtectedRoute>
+        } />
       </Routes>
     </Router>
   );

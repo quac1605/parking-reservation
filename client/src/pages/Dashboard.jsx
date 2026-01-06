@@ -1,33 +1,72 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import MapVisualization from '../components/MapVisualization';
+import { calculatePrice } from '../utils/pricing';
 
 export default function Dashboard() {
     const navigate = useNavigate();
     const [selectedSide, setSelectedSide] = useState('Front Side');
     const [selectedSlot, setSelectedSlot] = useState(null);
-    const [startTime, setStartTime] = useState('18:00');
-    const [endTime, setEndTime] = useState('21:00');
+    const [startTime, setStartTime] = useState('');
+    const [endTime, setEndTime] = useState('');
 
-    // Generate time slots: 18:00 today to 06:00 tomorrow (every 30 mins)
-    const timeSlots = [];
-    let currentHour = 18;
-    let currentMinute = 0;
+    // --- Time Logic ---
+    const now = new Date();
 
-    // We want 18:00 (18.0) to 06:00 (30.0) next day
-    // 18.0 to 30.0
-    for (let i = 0; i <= 24; i++) { // 12 hours * 2 slots/hr = 24 slots + 06:00 end
-        const hour = currentHour % 24;
-        const timeString = `${hour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
-        timeSlots.push(timeString);
+    // Generate base slots (18:00 today -> 06:00 tomorrow)
+    const generateSlots = () => {
+        const slots = [];
+        let baseDate = new Date();
+        baseDate.setHours(18, 0, 0, 0); // Today 18:00
 
-        currentMinute += 30;
-        if (currentMinute >= 60) {
-            currentMinute = 0;
-            currentHour += 1;
+        // If it's currently early morning (e.g. 02:00), "Today 18:00" is in the future relative to "booking for tonight"? 
+        // No, typically "Night Shift" implies the current active night. 
+        // If it's 02:00, user might want to book 02:30-06:00.
+        // In that case, the window started yesterday 18:00. 
+        // Let's Simplify: The app always shows the *Upcoming* or *Current* valid window.
+        // If Now < 06:00, we are in the window. Avail slots = Now -> 06:00.
+        // If Now > 06:00, we are waiting for 18:00. Avail slots = 18:00 -> 06:00 (+1).
+
+        let windowStart = new Date();
+        windowStart.setHours(18, 0, 0, 0);
+
+        // If we are in the Early Morning (00:00 - 06:00), we want the window that started yesterday
+        if (now.getHours() < 6) {
+            windowStart.setDate(windowStart.getDate() - 1);
         }
-        if (currentHour > 30) break; // Safety break, though loop handles it (18+12=30)
-    }
+
+        // Generate 30 min intervals for 12 hours from windowStart
+        for (let i = 0; i <= 24; i++) { // 12 hours
+            const slotTime = new Date(windowStart.getTime() + i * 30 * 60000);
+
+            // Only add if it's in the future (plus a small buffer, e.g. 1 min)
+            if (slotTime > now) {
+                const h = slotTime.getHours().toString().padStart(2, '0');
+                const m = slotTime.getMinutes().toString().padStart(2, '0');
+                slots.push(`${h}:${m}`);
+            }
+        }
+        return slots;
+    };
+
+    const availableTimeSlots = generateSlots();
+
+    // Set default times on mount or invalid
+    React.useEffect(() => {
+        if (availableTimeSlots.length > 0) {
+            // If current start time is not in list (or empty), reset to first available
+            if (!availableTimeSlots.includes(startTime)) {
+                setStartTime(availableTimeSlots[0]);
+                // Default end time to 3 hours later or max
+                const startIndex = 0;
+                const endIndex = Math.min(startIndex + 6, availableTimeSlots.length - 1); // +3 hours
+                setEndTime(availableTimeSlots[endIndex]);
+            }
+        }
+    }, [availableTimeSlots, startTime]); // Run whenever slots or startTime changes
+
+    // Calculate price
+    const totalPrice = calculatePrice(startTime, endTime);
 
     const handleSlotSelect = (slot) => {
         setSelectedSlot(slot);
@@ -41,9 +80,20 @@ export default function Dashboard() {
                     slot: selectedSlot,
                     location: selectedSide,
                     startTime: startTime,
-                    endTime: endTime
+                    endTime: endTime,
+                    totalPrice: totalPrice
                 }
             });
+        }
+    };
+
+    const handleLogout = async () => {
+        try {
+            await fetch('/api/auth/logout');
+            navigate('/login');
+        } catch (error) {
+            console.error('Logout failed:', error);
+            navigate('/login'); // Redirect anyway
         }
     };
 
@@ -55,13 +105,16 @@ export default function Dashboard() {
                     <h1 className="text-xl font-bold text-primary">Fachhochschule<br />Dortmund</h1>
                     <p className="text-xs text-gray-500">University of Applied Sciences and Arts</p>
                 </div>
-                <button className="text-gray-500 hover:text-primary px-4 py-2 border border-gray-300 rounded hover:border-primary transition-colors">
+                <button
+                    onClick={handleLogout}
+                    className="text-gray-500 hover:text-primary px-4 py-2 border border-gray-300 rounded hover:border-primary transition-colors"
+                >
                     Sign Out
                 </button>
             </header>
 
             <main className="max-w-7xl mx-auto px-8 py-8">
-                <h2 className="text-3xl font-bold text-gray-900 mb-8">Welcome, Andreas</h2>
+                <h2 className="text-3xl font-bold text-gray-900 mb-8">Welcome</h2>
 
                 {/* Location Selector */}
                 <div className="mb-6">
@@ -110,7 +163,7 @@ export default function Dashboard() {
                                 onChange={(e) => setStartTime(e.target.value)}
                                 className="px-4 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-gray-700"
                             >
-                                {timeSlots.slice(0, -1).map(time => (
+                                {availableTimeSlots.slice(0, -1).map(time => (
                                     <option key={time} value={time}>{time}</option>
                                 ))}
                             </select>
@@ -120,15 +173,20 @@ export default function Dashboard() {
                                 onChange={(e) => setEndTime(e.target.value)}
                                 className="px-4 py-2 border border-gray-300 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-gray-700"
                             >
-                                {timeSlots.map(time => (
+                                {availableTimeSlots.map(time => (
                                     <option key={time} value={time}>{time}</option>
                                 ))}
                             </select>
                         </div>
                         {selectedSlot && (
-                            <p className="text-sm text-green-600 mt-1">
-                                Selected: <span className="font-bold">{selectedSlot.id}</span>
-                            </p>
+                            <div className="mt-1">
+                                <p className="text-sm text-green-600">
+                                    Selected: <span className="font-bold">{selectedSlot.id}</span>
+                                </p>
+                                <p className="text-sm text-gray-900 mt-1">
+                                    Est. Price: <span className="font-bold text-primary">€ {totalPrice}</span>
+                                </p>
+                            </div>
                         )}
                     </div>
 

@@ -10,11 +10,29 @@ export default function SignUp() {
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log('SignUp:', email, password);
-        navigate('/dashboard');
-        // TODO: Connect to backend
+        try {
+            const res = await fetch('/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                console.log('Registration successful:', data);
+                // Auto login or redirect to login
+                navigate('/dashboard');
+            } else {
+                console.error('Registration failed:', data.message);
+                alert(data.message || 'Registration failed');
+            }
+        } catch (err) {
+            console.error('Error:', err);
+            alert('Something went wrong. Please try again.');
+        }
     };
 
     return (
@@ -85,7 +103,7 @@ export default function SignUp() {
 
             <div className="mt-6 flex justify-center">
                 <a
-                    href="http://localhost:5000/api/auth/google"
+                    href="/api/auth/google"
                     className="w-20 flex justify-center items-center py-2 border border-gray-300 rounded-md shadow-sm bg-white hover:bg-gray-50"
                 >
                     <img className="h-6 w-6" src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" />

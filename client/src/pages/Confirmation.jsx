@@ -4,11 +4,12 @@ import { useLocation, useNavigate } from 'react-router-dom';
 export default function Confirmation() {
     const location = useLocation();
     const navigate = useNavigate();
-    const { slot, location: locName, startTime, endTime } = location.state || {
+    const { slot, location: locName, startTime, endTime, totalPrice } = location.state || {
         slot: { id: 'F 12' },
         location: 'Front Side',
         startTime: '18:00',
-        endTime: '21:00'
+        endTime: '21:00',
+        totalPrice: '0.00'
     };
 
     return (
@@ -37,7 +38,7 @@ export default function Confirmation() {
                         </div>
 
                         <span className="font-bold text-gray-900 mt-4">Reservation Cost:</span>
-                        <span className="font-bold text-gray-900 mt-4">€ 3.00</span>
+                        <span className="font-bold text-primary mt-4">€ {totalPrice}</span>
                     </div>
                 </div>
 

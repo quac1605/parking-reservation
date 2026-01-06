@@ -8,11 +8,28 @@ export default function SignIn() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log('Login:', email, password);
-        navigate('/dashboard');
-        // TODO: Connect to backend
+        try {
+            const res = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                console.log('Login successful:', data);
+                navigate('/dashboard');
+            } else {
+                console.error('Login failed:', data.message);
+                alert(data.message || 'Login failed');
+            }
+        } catch (err) {
+            console.error('Error:', err);
+            alert('Something went wrong. Please try again.');
+        }
     };
 
     return (
@@ -69,7 +86,7 @@ export default function SignIn() {
 
             <div className="mt-6">
                 <a
-                    href="http://localhost:5000/api/auth/google"
+                    href="/api/auth/google"
                     className="w-full flex justify-center items-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
                 >
                     <img className="h-5 w-5 mr-2" src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" />
