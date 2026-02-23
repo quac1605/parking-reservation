@@ -45,10 +45,13 @@ module.exports = function (passport) {
     }));
 
     // Google Strategy
+    const callbackURL = (process.env.GOOGLE_CALLBACK_URL || '').trim().replace('http://', 'https://');
+
     passport.use(new GoogleStrategy({
-        clientID: process.env.GOOGLE_CLIENT_ID,
-        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-        callbackURL: process.env.GOOGLE_CALLBACK_URL
+        clientID: (process.env.GOOGLE_CLIENT_ID || '').trim(),
+        clientSecret: (process.env.GOOGLE_CLIENT_SECRET || '').trim(),
+        callbackURL: callbackURL,
+        proxy: true
     },
         async (accessToken, refreshToken, profile, done) => {
             try {
@@ -68,8 +71,6 @@ module.exports = function (passport) {
                     // Ensure email doesn't exist under local auth
                     const existingEmail = await db.query('SELECT * FROM users WHERE email = $1', [newUser.email]);
                     if (existingEmail.rows.length > 0) {
-                        // Link account logic could go here, for now just return error or login?
-                        // Usually we update the user to add google_id
                         const updatedUser = await db.query(
                             'UPDATE users SET google_id = $1 WHERE email = $2 RETURNING *',
                             [newUser.google_id, newUser.email]
@@ -86,5 +87,5 @@ module.exports = function (passport) {
             } catch (err) {
                 return done(err);
             }
-        }));
-};
+        }));// Express session configuration + Passport session integration (index.js)
+    }

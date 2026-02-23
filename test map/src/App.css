@@ -1,0 +1,130 @@
+.app-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  font-family: 'Inter', sans-serif;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: 300px;
+  background: #f8f9fa;
+  border-right: 1px solid #e9ecef;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+  z-index: 1001;
+  /* Above map tiles if needed */
+}
+
+.sidebar h2 {
+  margin-top: 0;
+  color: #343a40;
+  font-size: 1.5rem;
+}
+
+.instructions {
+  background: #e9ecef;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+  color: #495057;
+}
+
+.instructions p {
+  margin: 5px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.coordinates-list {
+  flex: 1;
+  overflow-y: auto;
+  border-top: 1px solid #dee2e6;
+  padding-top: 10px;
+}
+
+.coord-item {
+  font-size: 0.85rem;
+  padding: 8px 10px;
+  border-bottom: 1px solid #f1f3f5;
+  color: #495057;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.map-view {
+  flex: 1;
+  position: relative;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.5rem;
+  color: #6c757d;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 8px;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.2);
+}
+
+.leaflet-popup-content {
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+/* Custom Pin Styles */
+.custom-icon-marker {
+  background: none;
+  border: none;
+}
+
+.pin-number {
+  background-color: #228be6;
+  width: 30px;
+  height: 30px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.3);
+  margin-left: 0px;
+  position: relative;
+}
+
+/* Shadow effect */
+.pin-number::after {
+  content: '';
+  width: 30px;
+  height: 30px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 50%;
+  position: absolute;
+  transform: rotate(45deg) scale(0.5, 0.2);
+  bottom: -38px;
+  left: -8px;
+  z-index: -1;
+  filter: blur(2px);
+  /* Hide shadow logic if it gets messy with offsets, but let's keep it simple */
+  display: none;
+  /* Disabling shadow for now to ensures clean look without adjusting offsets */
+}
+
+.pin-number span {
+  transform: rotate(45deg);
+  /* Counter-rotate value to keep text upright */
+  color: white;
+  font-weight: bold;
+  font-size: 12px;
+  display: block;
+}

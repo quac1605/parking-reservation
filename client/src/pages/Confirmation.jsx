@@ -23,7 +23,7 @@ export default function Confirmation() {
 
                 <div className="text-center mb-12">
                     <h2 className="text-3xl font-bold text-gray-900 mb-2">Reservation Confirmed</h2>
-                    <p className="text-2xl text-gray-800">Thank you, Andreas.</p>
+                    <p className="text-2xl text-gray-800">Thank you.</p>
                 </div>
 
                 <div className="bg-white border border-gray-200 rounded-lg p-8 mb-8 shadow-sm">
@@ -60,3 +60,4 @@ export default function Confirmation() {
         </div>
     );
 }
+

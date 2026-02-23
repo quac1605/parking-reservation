@@ -1,51 +1,88 @@
 export const calculatePrice = (startTimeStr, endTimeStr) => {
     // Strategies:
-    // 18:00 - 22:00: €2.50 / hr
-    // 22:00 - 06:00: €1.00 / hr
-    // Max Cap: €12.00
+    // 18:00 - 22:00: €2.50 / hr (Peak)
+    // 22:00 - 06:00: €1.00 / hr (Off-Peak)
+    // 06:00 - 18:00: €1.00 / hr (Daytime Weekend Off-Peak)
+    // User requirement: "Reserve on Sat/Sun for whole day".
+    // Assume €1.00/hr for daytime weekend.
 
-    if (!startTimeStr || !endTimeStr) return 0;
+    if (!startTimeStr || !endTimeStr) return '0.00';
 
-    // Helper to convert "18:00" to hour integer 18
-    const getHour = (timeStr) => parseInt(timeStr.split(':')[0], 10);
-    const getMinute = (timeStr) => parseInt(timeStr.split(':')[1], 10);
+    // Helper: Parse "Day HH:MM" to a Date object relative to "Now"
+    const parseDateValues = (str) => {
+        // str format: "Fri 18:00" or just "18:00" (backward compatibility?)
+        // The new dashboard always produces "Day HH:MM".
+        const parts = str.split(' ');
+        let dayName, timePart;
 
-    let startHour = getHour(startTimeStr);
-    let startMin = getMinute(startTimeStr);
-    let endHour = getHour(endTimeStr);
-    let endMin = getMinute(endTimeStr);
-
-    // Normalize for "next day" calculation
-    // Functional window is 18:00 (18) to 06:00 (30)
-
-    // Adjust logic: treat "00:00" to "06:00" as "24:00" to "30:00" for easier math
-    let effectiveStart = startHour + (startMin / 60);
-    let effectiveEnd = endHour + (endMin / 60);
-
-    if (effectiveStart < 12) effectiveStart += 24; // e.g. 01:00 becomes 25.0
-    if (effectiveEnd < 12) effectiveEnd += 24;     // e.g. 02:00 becomes 26.0
-
-    // Pricing Logic
-    let totalPrice = 0;
-
-    // Loop through each half-hour block
-    for (let t = effectiveStart; t < effectiveEnd; t += 0.5) {
-        // t is current time text. e.g. 18.0, 18.5
-
-        let rate = 0;
-        // Peak: 18:00 (18) to 22:00 (22)
-        if (t >= 18 && t < 22) {
-            rate = 2.50; // Per hour
-        }
-        // Off-Peak: 22:00 (22) to 06:00 (30)
-        else {
-            rate = 1.00; // Per hour
+        if (parts.length === 2) {
+            dayName = parts[0];
+            timePart = parts[1];
+        } else {
+            // Fallback for "18:00" without day
+            dayName = null;
+            timePart = str;
         }
 
-        // Add price for 30 mins (0.5 hours)
-        totalPrice += (rate * 0.5);
+        const [h, m] = timePart.split(':').map(Number);
+        return { dayName, h, m };
+    };
+
+    // Establish a relative timeline between Start and End.
+    // Create actual Date objects assuming they are within the next 7 days.
+
+    const getRealDate = (str) => {
+        const { dayName, h, m } = parseDateValues(str);
+        const d = new Date();
+        d.setHours(h, m, 0, 0);
+
+        if (dayName) {
+            const daysMap = { 'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6 };
+            const targetDay = daysMap[dayName];
+            const currentDay = new Date().getDay();
+
+            // Calculate day difference
+            let diff = targetDay - currentDay;
+            if (diff < 0) diff += 7;
+            d.setDate(new Date().getDate() + diff);
+        }
+        return d;
+    };
+
+    const start = getRealDate(startTimeStr);
+    let end = getRealDate(endTimeStr);
+
+    if (end < start) {
+        end.setDate(end.getDate() + 1); // Fallback for simple wrapping
+        // If "Mon" < "Fri", our logic above (diff) handled it.
     }
 
-    // Cap at €12.00
-    return Math.min(totalPrice, 12.00).toFixed(2);
+    // Iterate through hours
+    let totalPrice = 0;
+    const durationMs = end - start;
+    const durationHours = durationMs / (1000 * 60 * 60);
+
+    let current = new Date(start);
+
+    // Loop every 30 mins
+    while (current < end) {
+        const h = current.getHours();
+
+        let rate = 1.00; // Default Off-Peak (22-06 and Daytime 06-18)
+
+        // Peak logic: 18:00 - 22:00
+        if (h >= 18 && h < 22) {
+            rate = 2.50;
+        } else {
+            // Off-Peak (22-06) = 1.00
+            // Daytime (06-18) = 1.00
+            rate = 1.00;
+        }
+
+        totalPrice += (rate * 0.5); // 30 min block
+        current.setMinutes(current.getMinutes() + 30);
+    }
+    return totalPrice.toFixed(2);
 };
+
+

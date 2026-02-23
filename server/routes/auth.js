@@ -50,13 +50,19 @@ router.post('/login', (req, res, next) => {
 });
 
 // Google Auth
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+const FRONTEND_URL = process.env.CORS_ORIGIN || 'http://localhost:5173';
+console.log(`[DEBUG] Auth routes initialized. Frontend: ${FRONTEND_URL}, Google Callback: ${process.env.GOOGLE_CALLBACK_URL}`);
+
+router.get('/google', (req, res, next) => {
+    console.log(`[DEBUG] Initiating Google Auth with Callback: ${process.env.GOOGLE_CALLBACK_URL}`);
+    passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+});
 
 router.get('/google/callback',
-    passport.authenticate('google', { failureRedirect: 'http://localhost:5173/login?error=true' }),
+    passport.authenticate('google', { failureRedirect: `${FRONTEND_URL}/login?error=true` }),
     (req, res) => {
         // Successful authentication, redirect dashboard.
-        res.redirect('http://localhost:5173/dashboard');
+        res.redirect(`${FRONTEND_URL}/dashboard`);
     }
 );
 
@@ -64,7 +70,7 @@ router.get('/google/callback',
 router.get('/logout', (req, res) => {
     req.logout((err) => {
         if (err) { return next(err); }
-        res.redirect('http://localhost:5173/login');
+        res.redirect(`${FRONTEND_URL}/login`);
     });
 });
 

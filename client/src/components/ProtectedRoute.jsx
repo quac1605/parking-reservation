@@ -8,7 +8,7 @@ export default function ProtectedRoute({ children }) {
     useEffect(() => {
         const checkAuth = async () => {
             try {
-                const res = await fetch('/api/auth/current_user');
+                const res = await fetch('/api/auth/current_user', { credentials: 'include' });
                 if (res.ok) {
                     setIsAuthenticated(true);
                 } else {

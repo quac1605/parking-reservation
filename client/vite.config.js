@@ -6,11 +6,13 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: true, // Listen on all local IPs
+    allowedHosts: true, // Allow all hosts (including tunnels)
     proxy: {
       '/api': {
         target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false,
+        xfwd: true, // Send X-Forwarded headers
       },
     },
   },

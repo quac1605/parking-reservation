@@ -1,10 +1,10 @@
 const router = require('express').Router();
 const db = require('../db');
 
+const QRCode = require('qrcode');
+
 // Create a new reservation
 router.post('/', async (req, res) => {
-    // Expect user_id from session or body (if we rely on client for now, but better from session)
-    // For now, we'll assume the client sends everything or we get user from req.user (Passport)
     const { slot_id, location, start_time, end_time, total_price } = req.body;
 
     if (!req.isAuthenticated()) {
@@ -14,9 +14,35 @@ router.post('/', async (req, res) => {
     try {
         const userId = req.user.id;
 
+        // Check for overlapping reservations on the same slot
+        // Enforce a 1-hour buffer between reservations
+        const overlap = await db.query(
+            `SELECT id FROM reservations
+             WHERE slot_id = $1 AND status = 'confirmed'
+             AND start_time < ($3::timestamp + INTERVAL '1 hour') 
+             AND (end_time + INTERVAL '1 hour') > $2::timestamp`,
+            [slot_id, start_time, end_time]
+        );
+
+        if (overlap.rows.length > 0) {
+            return res.status(400).json({ message: 'This time slot overlaps with an existing reservation.' });
+        }
+
+        // Generate QR Code Data (JSON string of reservation details)
+        const qrData = JSON.stringify({
+            uid: userId,
+            slot: slot_id,
+            loc: location,
+            start: start_time,
+            end: end_time
+        });
+
+        // Generate QR Code as Data URL
+        const qrCodeImage = await QRCode.toDataURL(qrData);
+
         const newReservation = await db.query(
-            'INSERT INTO reservations (user_id, slot_id, location, start_time, end_time, total_price) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-            [userId, slot_id, location, start_time, end_time, total_price]
+            'INSERT INTO reservations (user_id, slot_id, location, start_time, end_time, total_price, qr_code) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+            [userId, slot_id, location, start_time, end_time, total_price, qrCodeImage]
         );
 
         res.json(newReservation.rows[0]);
@@ -42,6 +68,37 @@ router.get('/my-reservations', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ message: 'Server error fetching reservations' });
+    }
+});
+
+// Get occupied slots with end times
+router.get('/occupied', async (req, res) => {
+    try {
+        // Prevent caching on mobile/browsers
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
+
+        // Find reservations where end_time > NOW, return slot_id and the latest end_time per slot
+        const result = await db.query(
+            `SELECT slot_id, MAX(end_time) as end_time
+             FROM reservations
+             WHERE status = 'confirmed' AND end_time > NOW()
+             GROUP BY slot_id`
+        );
+
+        // Return array of objects: [{ slot_id: 'F1', end_time: '...' }]
+        const occupiedData = result.rows.map(row => ({
+            slot_id: row.slot_id,
+            end_time: row.end_time
+        }));
+
+        console.log(`[Status] Occupied: ${occupiedData.map(o => o.slot_id).join(', ')}`);
+
+        res.json(occupiedData);
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Server error fetching availability' });
     }
 });
 
